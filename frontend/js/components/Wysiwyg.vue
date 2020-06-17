@@ -222,7 +222,7 @@
       },
       updateEditor: function (newValue) {
         // convert string to HTML and update the content silently
-        const htmlData = this.quill.clipboard.convert(newValue)
+        const htmlData = this.quill.clipboard.convertAndClean(newValue)
         this.quill.setContents(htmlData, 'silent')
       },
       updateFromStore: function (newValue) { // called from the formStore mixin

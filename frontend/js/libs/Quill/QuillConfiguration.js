@@ -7,6 +7,7 @@ const Break = Quill.import('blots/break')
 const Embed = Quill.import('blots/embed')
 const Inline = Quill.import('blots/inline')
 const Link = Quill.import('formats/link')
+const Clipboard = Quill.import('modules/clipboard')
 
 /*
 * Support for shift enter
@@ -148,6 +149,49 @@ class MyLink extends Link {
 }
 
 Quill.register(MyLink)
+
+class CustomClipboard extends Clipboard {
+  cleanDelta (delta) {
+    for (let i = delta.ops.length - 1; i >= 0; i--) {
+      const item = delta.ops[i]
+      if (typeof item.insert === 'object' && typeof item.insert.break !== 'undefined' && Object.keys(item.insert).length === 1 && item.insert.break === '') {
+        delta.ops.splice(i, 1)
+      }
+    }
+    return delta
+  }
+
+  convertAndClean (html) {
+    const delta = this.convert(html)
+    return this.cleanDelta(delta)
+  }
+
+  onPaste (e) {
+    const oldDelta = this.quill.getContents()
+    if (e.defaultPrevented || !this.quill.isEnabled()) return
+    const range = this.quill.getSelection()
+    let delta = this.cleanDelta(new Delta().retain(range.index))
+
+    const scrollTop = this.quill.scrollingContainer.scrollTop
+    this.container.focus()
+    this.quill.selection.update(Quill.sources.SILENT)
+    setTimeout(() => {
+      delta = delta.concat(this.convert()).delete(range.length)
+      this.quill.updateContents(delta, Quill.sources.USER)
+      // range.length contributes to delta.length()
+      this.quill.setSelection(delta.length() - range.length, Quill.sources.SILENT)
+      this.quill.scrollingContainer.scrollTop = scrollTop
+      this.quill.focus()
+    }, 1)
+
+    setTimeout(function () {
+      const delta = this.quill.getContents()
+      this.quill.emitter.emit('text-change', delta, oldDelta, 'user')
+    }.bind(this), 1)
+  }
+}
+
+Quill.register('modules/clipboard', CustomClipboard, true)
 
 /* Custom Icons */
 function getIcon (shape) {
