@@ -2,6 +2,7 @@
 
 namespace A17\Twill\Repositories;
 
+use A17\Twill\Models\Model;
 use A17\Twill\Models\Behaviors\Sortable;
 use A17\Twill\Repositories\Behaviors\HandleBrowsers;
 use A17\Twill\Repositories\Behaviors\HandleDates;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\Relation;
+
 use PDO;
 
 abstract class ModuleRepository
@@ -844,7 +847,16 @@ abstract class ModuleRepository
     protected function getModelRepository($relation, $model = null)
     {
         if (!$model) {
-            $model = ucfirst(Str::singular($relation));
+            if (class_exists($relation) && (new $relation) instanceof Model) {
+                $model = Str::afterLast($relation, '\\');
+            } else {
+                $morphedModel = Relation::getMorphedModel($relation);
+                if (class_exists($morphedModel) && (new $morphedModel) instanceof Model) {
+                    $model = (new \ReflectionClass($morphedModel))->getShortName();
+                } else {
+                    $model = ucfirst(Str::singular($relation));
+                }
+            }
         }
 
         return App::make(Config::get('twill.namespace') . "\\Repositories\\" . ucfirst($model) . "Repository");
